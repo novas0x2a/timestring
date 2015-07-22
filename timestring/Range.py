@@ -1,3 +1,4 @@
+import functools
 import re
 import pytz
 from copy import copy
@@ -29,14 +30,16 @@ class Range(object):
         if end and not isinstance(end, (Date, datetime)):
             end = str(end)
 
+        make_date = functools.partial(Date, tz=tz, offset=offset)
+
         if start and end:
             """start and end provided
             """
-            self._dates = (Date(start, tz=tz), Date(end, tz=tz))
+            self._dates = (make_date(start), make_date(end))
 
         elif start == 'infinity':
             # end was not provided
-            self._dates = (Date('infinity'), Date('infinity'))
+            self._dates = (make_date('infinity'), make_date('infinity'))
 
         elif re.search(r'(\s(and|to)\s)', start):
             """Both sides where provided in the start
@@ -44,13 +47,13 @@ class Range(object):
             start = re.sub('^(between|from)\s', '', start.lower())
             # Both arguments found in start variable
             r = tuple(re.split(r'(\s(and|to)\s)', start.strip()))
-            self._dates = (Date(r[0], tz=tz), Date(r[-1], tz=tz))
+            self._dates = (make_date(r[0]), make_date(r[-1]))
 
         elif re.match(r"(\[|\()((\"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?(\+|\-)\d{2}\")|infinity),((\"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?(\+|\-)\d{2}\")|infinity)(\]|\))", start):
             """postgresql tsrange and tstzranges support
             """
             start, end = tuple(re.sub('[^\w\s\-\:\.\+\,]', '', start).split(','))
-            self._dates = (Date(start), Date(end))
+            self._dates = (make_date(start), make_date(end))
 
         else:
             now = datetime.now()
@@ -74,7 +77,7 @@ class Range(object):
                     delta = (group.get('delta') or group.get('delta_2')).lower()
 
                     # always start w/ today
-                    start = Date("today", offset=offset, tz=tz)
+                    start = make_date("today")
 
                     # make delta
                     di = "%s %s" % (str(int(group['num'] or 1)), delta)
@@ -83,27 +86,27 @@ class Range(object):
                     if group['ref'] == 'this':
 
                         if delta.startswith('y'):
-                            start = Date(datetime(now.year, 1, 1), offset=offset, tz=tz)
+                            start = make_date(datetime(now.year, 1, 1))
 
                         # month
                         elif delta.startswith('month'):
-                            start = Date(datetime(now.year, now.month, 1), offset=offset, tz=tz)
+                            start = make_date(datetime(now.year, now.month, 1))
 
                         # week
                         elif delta.startswith('w'):
-                            start = Date("today", offset=offset, tz=tz) - (str(Date("today", tz=tz).date.weekday())+' days')
+                            start = make_date("today") - (str(make_date("today").date.weekday())+' days')
 
                         # day
                         elif delta.startswith('d'):
-                            start = Date("today", offset=offset, tz=tz)
+                            start = make_date("today")
 
                         # hour
                         elif delta.startswith('h'):
-                            start = Date("today", offset=dict(hour=now.hour+1), tz=tz)
+                            start = make_date("today", offset=dict(hour=now.hour+1))
 
                         # minute, second
                         elif delta.startswith('m') or delta.startswith('s'):
-                            start = Date("now", tz=tz)
+                            start = make_date("now")
 
                         else:
                             raise TimestringInvalid("Not a valid time reference")
@@ -131,19 +134,19 @@ class Range(object):
 
                 elif group.get('month_1'):
                     # a single month of this yeear
-                    start = Date(start, offset=offset, tz=tz)
+                    start = make_date(start)
                     start = start.replace(day=1)
                     end = start + '1 month'
 
                 elif group.get('year_5'):
                     # a whole year
-                    start = Date(start, offset=offset, tz=tz)
+                    start = make_date(start)
                     start = start.replace(day=1, month=1)
                     end = start + '1 year'
 
                 else:
                     # after all else, we set the end to + 1 day
-                    start = Date(start, offset=offset, tz=tz)
+                    start = make_date(start)
                     end = start + '1 day'
 
             else:
