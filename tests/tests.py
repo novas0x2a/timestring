@@ -316,6 +316,49 @@ class timestringTests(unittest.TestCase):
         self.assertEqual(Range('1 year ago'), Range('last year'))
         self.assertEqual(Range('year ago'), Range('last year'))
 
+    def test_last_relative(self):
+        then = datetime(2013, 1, 17, 15, 59, 0)
+        now  = datetime.now()
+
+        # make sure test failures due to an incorrect clock are caught early...
+        two_years = timedelta(days=365*2)
+        self.assertTrue(then + two_years < now,
+                        'Your clock seems to be set in the past...')
+
+        #
+        # last year
+        #
+        year = Range('last year', rel=then)
+        self.assertEqual(year.start.year, then.year - 1)
+        self.assertEqual(year.start.month, then.month)
+        self.assertEqual(year.start.day, then.day)
+        self.assertEqual(year.start.hour, 0)
+        self.assertEqual(year.start.minute, 0)
+        self.assertEqual(year.end.year, then.year)
+        self.assertEqual(year.end.month, then.month)
+        self.assertEqual(year.end.day, then.day)
+        self.assertEqual(year.end.hour, 0)
+        self.assertEqual(year.end.minute, 0)
+
+        self.assertFalse(Date('today') in year)
+        self.assertTrue(Date('today', rel=then) in year)
+
+        r8_now  = Range('8 days')
+        r8_then = Range('8 days', rel=then)
+
+        self.assertTrue(r8_now, Range('8 days', rel=now))
+
+        self.assertFalse(Date('last tuesday', rel=then) in r8_now)
+        self.assertFalse(Date('monday', rel=then) in r8_now)
+        self.assertFalse(Date('last fri', rel=then) in r8_now)
+
+        self.assertTrue(Date('last tuesday', rel=then) in r8_then)
+        self.assertTrue(Date('monday', rel=then) in r8_then)
+        self.assertTrue(Date('last fri', rel=then) in r8_then)
+
+        self.assertEqual(Range('1 year ago', rel=then), Range('last year', rel=then))
+        self.assertEqual(Range('year ago', rel=then), Range('last year', rel=then))
+
     def test_psql_infinity(self):
         d = Date('infinity')
         self.assertTrue(d > 'now')

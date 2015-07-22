@@ -16,7 +16,7 @@ except NameError:
 
 
 class Range(object):
-    def __init__(self, start, end=None, offset=None, start_of_week=0, tz=None, verbose=False):
+    def __init__(self, start, end=None, offset=None, start_of_week=0, tz=None, verbose=False, rel=None):
         """`start` can be type <class timestring.Date> or <type str>
         """
         self._dates = []
@@ -30,7 +30,12 @@ class Range(object):
         if end and not isinstance(end, (Date, datetime)):
             end = str(end)
 
-        make_date = functools.partial(Date, tz=tz, offset=offset)
+        if rel is None:
+            rel = Date('now')
+        elif not isinstance(rel, Date):
+            rel = Date(rel)
+
+        make_date = functools.partial(Date, tz=tz, rel=rel, offset=offset)
 
         if start and end:
             """start and end provided
@@ -56,7 +61,7 @@ class Range(object):
             self._dates = (make_date(start), make_date(end))
 
         else:
-            now = datetime.now()
+            now = rel
             # no tz info but offset provided, we are UTC so convert
 
             if re.search(r"(\+|\-)\d{2}$", start):
@@ -129,7 +134,7 @@ class Range(object):
                     else:
                         # need to include today with this reference
                         if not (delta.startswith('h') or delta.startswith('m') or delta.startswith('s')):
-                            start = Range('today', offset=offset, tz=tz).end
+                            start = Range('today', offset=offset, tz=tz, rel=rel).end
                         end = start - di                    
 
                 elif group.get('month_1'):

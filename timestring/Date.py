@@ -17,14 +17,18 @@ except NameError:
 CLEAN_NUMBER = re.compile(r"[\D]")
 
 class Date(object):
-    def __init__(self, date, offset=None, start_of_week=None, tz=None, verbose=False):
+    def __init__(self, date, offset=None, start_of_week=None, tz=None, verbose=False, rel=None):
         if isinstance(date, Date):
             self.date = copy(date.date)
             return
 
         # This slightly awkward nonsense creates both of these data
         # structures with the same time, but with correct dst flags.
-        rel    = time.time()
+        if rel is None:
+            rel = time.time()
+        else:
+            rel = Date(rel).to_unixtime()
+
         rel_dt = datetime.fromtimestamp(rel)
         rel_ts = time.localtime(rel)
 
