@@ -22,6 +22,12 @@ class Date(object):
             self.date = copy(date.date)
             return
 
+        # This slightly awkward nonsense creates both of these data
+        # structures with the same time, but with correct dst flags.
+        rel    = time.time()
+        rel_dt = datetime.fromtimestamp(rel)
+        rel_ts = time.localtime(rel)
+
         # The original request
         self._original = date
         if tz:
@@ -31,7 +37,7 @@ class Date(object):
             self.date = 'infinity'
 
         elif date == 'now':
-            self.date = datetime.now()
+            self.date = rel_dt
 
         elif type(date) in (str, unicode) and re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+-\d{2}", date):
             self.date = datetime.strptime(date[:-3], "%Y-%m-%d %H:%M:%S.%f") - timedelta(hours=int(date[-3:]))
@@ -55,12 +61,12 @@ class Date(object):
 
             if isinstance(date, dict):
                 # Initial date.
-                new_date = datetime(*time.localtime()[:3])
+                new_date = datetime(*rel_ts[:3])
                 if tz and tz.zone != "UTC":
                     #
                     # The purpose here is to adjust what day it is based on the timezeone
                     #
-                    ts = datetime.now()
+                    ts = rel_dt
                     # Daylight savings === second Sunday in March and reverts to standard time on the first Sunday in November
                     # Monday is 0 and Sunday is 6.
                     # 14 days - dst_start.weekday()
@@ -163,8 +169,8 @@ class Date(object):
                 # !daytime
                 if date.get('daytime'):
                     if date['daytime'].find('this time') >= 1:
-                        new_date = new_date.replace(hour=datetime(*time.localtime()[:5]).hour,
-                                                    minute=datetime(*time.localtime()[:5]).minute)
+                        new_date = new_date.replace(hour=datetime(*rel_st[:5]).hour,
+                                                    minute=datetime(*rel_st[:5]).minute)
                     else:
                         new_date = new_date.replace(hour=dict(morning=9, noon=12, afternoon=15, evening=18, night=21, nighttime=21, midnight=24).get(date.get('daytime'), 12))
                     # No offset because the hour was set.
@@ -201,11 +207,11 @@ class Date(object):
                 self.date = date
 
             elif date is None:
-                self.date = datetime.now()
+                self.date = rel_dt
 
             else:
                 # Set to the current date Y, M, D, H0, M0, S0
-                self.date = datetime(*time.localtime()[:3])
+                self.date = datetime(*rel_st[:3])
 
             if tz:
                 self.date = self.date.replace(tzinfo=tz)
